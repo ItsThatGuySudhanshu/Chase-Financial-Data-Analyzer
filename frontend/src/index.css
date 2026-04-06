@@ -56,8 +56,7 @@ body {
 .logo-icon {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
-  border-radius: 8px;
+  object-fit: contain;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
