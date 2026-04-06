@@ -47,20 +47,44 @@ export default function Dashboard({ transactions, summary }: Props) {
     return Object.entries(months).map(([name, pv]) => ({ name, pv })).reverse()
   }, [transactions])
 
+  const topMerchants = useMemo(() => {
+    const merchants: Record<string, number> = {}
+    let spendCount = 0
+    let spendTotal = 0
+
+    transactions.forEach(t => {
+      if (t.amount < 0) {
+        spendCount++
+        spendTotal += Math.abs(t.amount)
+        const name = (t.description || 'Unknown').trim()
+        merchants[name] = (merchants[name] || 0) + Math.abs(t.amount)
+      }
+    })
+    
+    const sorted = Object.entries(merchants).map(([name, total]) => ({name, total})).sort((a,b) => b.total - a.total).slice(0, 5)
+    return { list: sorted, count: spendCount, total: spendTotal }
+  }, [transactions])
+
+  const avgSpent = topMerchants.count > 0 ? (topMerchants.total / topMerchants.count) : 0
+
   return (
     <div className="dashboard-grid">
       {/* Top Stats */}
-      <div className="card col-span-4">
+      <div className="card col-span-3">
         <h3 className="card-title">Total Spending</h3>
         <div className="stat-value">{formatCurrency(totalSpent)}</div>
       </div>
-      <div className="card col-span-4">
+      <div className="card col-span-3">
         <h3 className="card-title">Transactions</h3>
         <div className="stat-value">{transactions.length}</div>
       </div>
-      <div className="card col-span-4">
-        <h3 className="card-title">Largest Category</h3>
-        <div className="stat-value" style={{fontSize: '1.5rem', marginTop: '10px'}}>
+      <div className="card col-span-3">
+        <h3 className="card-title">Average Tx Size</h3>
+        <div className="stat-value">{formatCurrency(avgSpent)}</div>
+      </div>
+      <div className="card col-span-3">
+        <h3 className="card-title">Top Category</h3>
+        <div className="stat-value" style={{fontSize: '1.25rem', marginTop: '10px'}}>
           {pieData.length > 0 ? pieData[0].name : 'N/A'}
         </div>
       </div>
@@ -119,8 +143,29 @@ export default function Dashboard({ transactions, summary }: Props) {
         )}
       </div>
 
+      <div className="card col-span-4" style={{ height: '350px' }}>
+          <h3 className="card-title">Top Merchants</h3>
+          {topMerchants.list.length > 0 ? (
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                {topMerchants.list.map((m, i) => (
+                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                       <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '0.5rem' }}>
+                          <span style={{ color: 'var(--text-secondary)', marginRight: '0.5rem' }}>#{i+1}</span> 
+                          {m.name}
+                       </div>
+                       <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--danger-color)' }}>
+                          {formatCurrency(m.total)}
+                       </div>
+                   </div>
+                ))}
+             </div>
+          ) : (
+             <div style={{display: 'flex', alignItems: 'center', justifyContent:'center', height:'100%', color: 'var(--text-secondary)'}}>No data available</div>
+          )}
+      </div>
+
       {/* Transactions Table */}
-      <div className="card col-span-12">
+      <div className="card col-span-8">
         <h3 className="card-title">Recent Transactions</h3>
         <div className="table-container">
           <table>
@@ -133,7 +178,7 @@ export default function Dashboard({ transactions, summary }: Props) {
               </tr>
             </thead>
             <tbody>
-              {transactions.slice(0, 50).map(t => (
+              {transactions.slice(0, 15).map(t => (
                 <tr key={t.id}>
                   <td>{t.transaction_date || t.post_date}</td>
                   <td>

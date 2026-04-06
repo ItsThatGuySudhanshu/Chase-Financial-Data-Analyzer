@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import axios from 'axios'
 import { Transaction, Budget } from '../App'
 import { format, parse } from 'date-fns'
@@ -14,17 +14,13 @@ const currentYear = new Date().getFullYear()
 const YEARS = Array.from({length: 10}, (_, i) => (currentYear - 2 + i).toString())
 
 export default function BudgetTracker({ transactions, budgets, onBudgetChange }: Props) {
-  // Explicit controls for month and year forecasting
   const [selMonth, setSelMonth] = useState(MONTHS[new Date().getMonth()])
   const [selYear, setSelYear] = useState(currentYear.toString())
-  const selectedMonthStr = `${selMonth} ${selYear}` // Standardized mapping e.g., "Dec 2025"
+  const selectedMonthStr = `${selMonth} ${selYear}` 
 
-  // Form States
-  const [formCategory, setFormCategory] = useState('')
-  const [formAmount, setFormAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [bulkBudgets, setBulkBudgets] = useState<Record<string, string>>({})
 
-  // Get dynamic categories for dropdown + common defaults
   const availableCategories = useMemo(() => {
     const cats = new Set<string>(['Groceries', 'Food & Drink', 'Gas', 'Shopping', 'Bills & Utilities', 'Entertainment', 'Personal', 'Travel'])
     transactions.forEach(t => {
@@ -33,20 +29,34 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
     return Array.from(cats).sort()
   }, [transactions])
 
-  const handleAddBudget = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formCategory || !formAmount) return
-    
+  useEffect(() => {
+     const currentMonthBudgets = budgets.filter(b => b.month === selectedMonthStr)
+     const initialBulk: Record<string, string> = {}
+     currentMonthBudgets.forEach(b => {
+         initialBulk[b.category] = b.amount.toString()
+     })
+     setBulkBudgets(initialBulk)
+  }, [budgets, selectedMonthStr])
+
+  const handleBulkChange = (cat: string, val: string) => {
+      setBulkBudgets(prev => ({...prev, [cat]: val}))
+  }
+
+  const handleSaveBulk = async () => {
     setIsSubmitting(true)
+    const payload = []
+    for (const [cat, val] of Object.entries(bulkBudgets)) {
+        const amount = parseFloat(val)
+        if (!isNaN(amount) && amount > 0) {
+            payload.push({ month: selectedMonthStr, category: cat, amount })
+        }
+    }
+
     try {
-      await axios.post('/budgets', {
-        month: selectedMonthStr,
-        category: formCategory,
-        amount: parseFloat(formAmount)
-      })
-      setFormCategory('')
-      setFormAmount('')
-      onBudgetChange() // Refresh global state
+      if (payload.length > 0) {
+         await axios.post('/budgets/bulk', payload)
+         onBudgetChange() 
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -63,13 +73,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
       }
   }
 
-  const handleEdit = (budget: Budget) => {
-      setFormCategory(budget.category)
-      setFormAmount(budget.amount.toString())
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  // Current month's budget data bound with actual spends
+  // Pre-calculate current month's active spends
   const monthData = useMemo(() => {
     const activeBudgets = budgets.filter(b => b.month === selectedMonthStr)
     const actualSpends: Record<string, number> = {}
@@ -90,12 +94,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
        const spent = actualSpends[b.category] || 0
        const percent = b.amount > 0 ? Math.min((spent / b.amount) * 100, 100) : 100
        const overBudget = spent > b.amount
-       return {
-         ...b,
-         spent,
-         percent,
-         overBudget
-       }
+       return { ...b, spent, percent, overBudget }
     })
   }, [budgets, selectedMonthStr, transactions])
 
@@ -107,7 +106,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
     <div style={{ paddingBottom: '2rem' }}>
       <div className="filter-bar card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-             <h3 style={{ margin: 0, fontSize: '1rem' }}>Active Targets For:</h3>
+             <h3 style={{ margin: 0, fontSize: '1rem' }}>Editing Targets For:</h3>
              <select 
                value={selMonth} 
                onChange={e => setSelMonth(e.target.value)}
@@ -126,38 +125,38 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
              </select>
          </div>
          
-         <form onSubmit={handleAddBudget} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-            <div style={{ flex: 1, minWidth: '150px' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Category Configuration</label>
-                <select 
-                    required
-                    value={formCategory} 
-                    onChange={e => setFormCategory(e.target.value)}
-                    className="filter-input"
-                    style={{ width: '100%' }}
-                >
-                    <option value="" disabled>Select Category...</option>
-                    {availableCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-            </div>
-            <div style={{ flex: 1, minWidth: '150px' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Target Monthly Limit ($)</label>
-                <input 
-                    required
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    placeholder="e.g. 500"
-                    value={formAmount}
-                    onChange={e => setFormAmount(e.target.value)}
-                    className="filter-input"
-                    style={{ width: '100%' }}
-                />
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={isSubmitting} style={{ height: '45px' }}>
-                {isSubmitting ? 'Saving...' : 'Save Rule'}
-            </button>
-         </form>
+         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+             <h4 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.85rem', textTransform: 'uppercase' }}>Bulk Configuration Editor</h4>
+             
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                 {availableCategories.map(cat => (
+                     <div key={cat} style={{ background: 'var(--bg-primary)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                         <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat}>
+                             {cat}
+                         </label>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>$</span>
+                             <input 
+                               type="number"
+                               min="0"
+                               step="1"
+                               placeholder="0"
+                               className="filter-input"
+                               style={{ padding: '0.35rem 0.5rem', minWidth: '0', flex: 1 }}
+                               value={bulkBudgets[cat] || ''}
+                               onChange={e => handleBulkChange(cat, e.target.value)}
+                             />
+                         </div>
+                     </div>
+                 ))}
+             </div>
+
+             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                 <button onClick={handleSaveBulk} className="btn btn-primary" disabled={isSubmitting} style={{ padding: '0.5rem 2rem' }}>
+                     {isSubmitting ? 'Saving All...' : 'Save Bulk Targets'}
+                 </button>
+             </div>
+         </div>
       </div>
 
       <div className="dashboard-grid" style={{ marginTop: '1.5rem' }}>
@@ -167,8 +166,11 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
                       <div>
                           <h3 className="card-title" style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{item.category}</h3>
                           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                              <button onClick={() => handleEdit(item)} className="btn" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}>Edit</button>
-                              <button onClick={() => handleDelete(item.id)} className="btn" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', color: 'var(--danger-color)', border: '1px solid rgba(239, 68, 68, 0.4)' }}>Delete</button>
+                              <button onClick={() => {
+                                  handleBulkChange(item.category, item.amount.toString())
+                                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                              }} className="btn btn-sm btn-outline">Edit</button>
+                              <button onClick={() => handleDelete(item.id)} className="btn btn-sm btn-danger">Delete</button>
                           </div>
                       </div>
                       
@@ -196,7 +198,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
 
           {monthData.length === 0 && (
               <div className="card col-span-12" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '4rem' }}>
-                  No planning rules exist for {selectedMonthStr}. Define a primary target above to start tracking!
+                  No planning rules exist for {selectedMonthStr}. Define targets above to start tracking!
               </div>
           )}
       </div>

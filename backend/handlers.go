@@ -60,6 +60,52 @@ func setBudget(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
+func setBudgetsBulk(w http.ResponseWriter, r *http.Request) {
+	var budgets []Budget
+	if err := json.NewDecoder(r.Body).Decode(&budgets); err != nil {
+		http.Error(w, "Invalid input payload", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Failed to start tx", http.StatusInternalServerError)
+		return
+	}
+
+	query := `INSERT INTO budgets (month, category, amount) 
+	          VALUES (?, ?, ?) 
+	          ON CONFLICT(month, category) 
+	          DO UPDATE SET amount = excluded.amount`
+	          
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+	    tx.Rollback()
+		http.Error(w, "Failed to prep tx", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	for _, b := range budgets {
+	    if b.Amount > 0 { // Safety skip
+		    _, err = stmt.Exec(b.Month, b.Category, b.Amount)
+		    if err != nil {
+			    tx.Rollback()
+			    http.Error(w, err.Error(), http.StatusInternalServerError)
+			    return
+		    }
+		}
+	}
+	
+	if err := tx.Commit(); err != nil {
+	    http.Error(w, "Failed to commit tx", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "count": fmt.Sprintf("%d", len(budgets))})
+}
+
 func deleteBudget(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {

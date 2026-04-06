@@ -1,6 +1,6 @@
 sheets/
 *.db
-spending.db
+spending.db*
 backend.exe
 
 # Dependencies
