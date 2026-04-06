@@ -69,7 +69,7 @@ function App() {
     <div className="app-container">
       <header className="navbar">
         <div className="logo" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>
-          <div className="logo-icon"></div>
+          <img src="/favicon.png" alt="Logo" className="logo-icon" />
           <h1>Chase Analyzer</h1>
         </div>
 
