@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"cd backend && go run .\"",
+    "dev": "concurrently \"vite\" \"cd backend && \\\"C:\\Program Files\\Go\\bin\\go.exe\\\" run .\"",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

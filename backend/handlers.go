@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func getTransactions(w http.ResponseWriter, r *http.Request) {
@@ -53,24 +54,20 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(summary)
 }
 
-func scanSheets(w http.ResponseWriter, r *http.Request) {
-	// Root of the project: Assuming backend runs from /backend, sheets is in /sheets
-	// or we just look up one dir. Let's make it configurable or relative to backend.
+func ScanLocalSheetsDir() int {
 	sheetsDir := filepath.Join("..", "sheets")
 	files, err := os.ReadDir(sheetsDir)
 	if err != nil {
-		// Try current dir just in case
 		sheetsDir = "sheets"
 		files, err = os.ReadDir(sheetsDir)
 		if err != nil {
-			http.Error(w, "Could not read sheets directory. Make sure 'sheets' folder exists.", http.StatusInternalServerError)
-			return
+			return 0
 		}
 	}
 
 	totalInserted := 0
 	for _, file := range files {
-		if !file.IsDir() && filepath.Ext(file.Name()) == ".csv" {
+		if !file.IsDir() && strings.ToLower(filepath.Ext(file.Name())) == ".csv" {
 			filePath := filepath.Join(sheetsDir, file.Name())
 			f, err := os.Open(filePath)
 			if err != nil {
@@ -81,7 +78,11 @@ func scanSheets(w http.ResponseWriter, r *http.Request) {
 			f.Close()
 		}
 	}
+	return totalInserted
+}
 
+func scanSheets(w http.ResponseWriter, r *http.Request) {
+	totalInserted := ScanLocalSheetsDir()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "success",

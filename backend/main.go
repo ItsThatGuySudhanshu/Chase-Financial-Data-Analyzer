@@ -12,6 +12,10 @@ import (
 func main() {
 	InitDB()
 
+	// Automatically scan and ingest any CSVs in the sheets folder on startup
+	inserted := ScanLocalSheetsDir()
+	log.Printf("Startup auto-scan complete. Inserted %d new transactions.\n", inserted)
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
