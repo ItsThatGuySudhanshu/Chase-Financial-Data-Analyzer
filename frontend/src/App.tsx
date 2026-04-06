@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import Dashboard from './components/Dashboard'
 import Uploader from './components/Uploader'
+import TransactionSearch from './components/TransactionSearch'
 
 // API base config
 axios.defaults.baseURL = 'http://localhost:8080/api'
@@ -21,6 +22,7 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard')
 
   const fetchData = async () => {
     setLoading(true)
@@ -45,10 +47,26 @@ function App() {
   return (
     <div className="app-container">
       <header className="navbar">
-        <div className="logo">
+        <div className="logo" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>
           <div className="logo-icon"></div>
           <h1>Chase Analyzer</h1>
         </div>
+
+        <div className="nav-tabs">
+          <button 
+            className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button 
+            className={`tab ${activeTab === 'transactions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('transactions')}
+          >
+            Transactions
+          </button>
+        </div>
+
         <Uploader onUploadSuccess={fetchData} />
       </header>
 
@@ -59,7 +77,11 @@ function App() {
             <p>Loading your financial data...</p>
           </div>
         ) : (
-          <Dashboard transactions={transactions} summary={summary} />
+          activeTab === 'dashboard' ? (
+            <Dashboard transactions={transactions} summary={summary} />
+          ) : (
+            <TransactionSearch transactions={transactions} />
+          )
         )}
       </main>
     </div>
