@@ -329,7 +329,7 @@ tbody tr:hover {
 .filter-input {
   flex: 1;
   min-width: 200px;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 1rem;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
@@ -337,11 +337,65 @@ tbody tr:hover {
   font-family: inherit;
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Custom chevron for <select> elements using filter-input */
+select.filter-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a4ab' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+  cursor: pointer;
+}
+
+select.filter-input option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .filter-input:focus {
   border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Compact number input for the budget editor chips */
+.budget-chip-input {
+  width: 72px;
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* hide spinner arrows */
+  -moz-appearance: textfield;
+}
+
+.budget-chip-input::-webkit-outer-spin-button,
+.budget-chip-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.budget-chip-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.budget-chip-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
 }
 
 /* Budget Tracking Bars */
