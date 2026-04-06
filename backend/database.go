@@ -32,9 +32,20 @@ func InitDB() {
 		UNIQUE(transaction_date, amount, description)
 	);
 	`
-	_, err = db.Exec(createTableQuery)
-	if err != nil {
+	if _, err := db.Exec(createTableQuery); err != nil {
 		log.Fatalf("Failed to create table: %v", err)
+	}
+
+	createBudgetsTable := `
+	CREATE TABLE IF NOT EXISTS budgets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		month TEXT,
+		category TEXT,
+		amount REAL,
+		UNIQUE(month, category)
+	);`
+	if _, err := db.Exec(createBudgetsTable); err != nil {
+		log.Fatalf("Failed to create budgets table: %v", err)
 	}
 }
 

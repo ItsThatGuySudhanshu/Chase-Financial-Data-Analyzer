@@ -9,6 +9,55 @@ import (
 	"strings"
 )
 
+type Budget struct {
+	ID       int     `json:"id"`
+	Month    string  `json:"month"`
+	Category string  `json:"category"`
+	Amount   float64 `json:"amount"`
+}
+
+func getBudgets(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT id, month, category, amount FROM budgets")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var budgets []Budget
+	for rows.Next() {
+		var b Budget
+		if err := rows.Scan(&b.ID, &b.Month, &b.Category, &b.Amount); err == nil {
+			budgets = append(budgets, b)
+		}
+	}
+	if budgets == nil {
+		budgets = []Budget{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(budgets)
+}
+
+func setBudget(w http.ResponseWriter, r *http.Request) {
+	var b Budget
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	query := `INSERT INTO budgets (month, category, amount) 
+	          VALUES (?, ?, ?) 
+	          ON CONFLICT(month, category) 
+	          DO UPDATE SET amount = excluded.amount`
+	_, err := db.Exec(query, b.Month, b.Category, b.Amount)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
 func getTransactions(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT id, transaction_date, post_date, description, category, type, amount, memo FROM transactions ORDER BY transaction_date DESC")
 	if err != nil {

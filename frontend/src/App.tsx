@@ -3,6 +3,7 @@ import axios from 'axios'
 import Dashboard from './components/Dashboard'
 import Uploader from './components/Uploader'
 import TransactionSearch from './components/TransactionSearch'
+import BudgetTracker from './components/BudgetTracker'
 
 // API base config
 axios.defaults.baseURL = 'http://localhost:8080/api'
@@ -18,21 +19,31 @@ export type Transaction = {
   memo: string
 }
 
+export type Budget = {
+  id: number
+  month: string
+  category: string
+  amount: number
+}
+
 function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
+  const [budgets, setBudgets] = useState<Budget[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'budget'>('dashboard')
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [txRes, sumRes] = await Promise.all([
+      const [txRes, sumRes, budRes] = await Promise.all([
         axios.get('/transactions'),
-        axios.get('/summary')
+        axios.get('/summary'),
+        axios.get('/budgets')
       ])
       setTransactions(txRes.data || [])
       setSummary(sumRes.data || {})
+      setBudgets(budRes.data || [])
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -65,6 +76,12 @@ function App() {
           >
             Transactions
           </button>
+          <button 
+            className={`tab ${activeTab === 'budget' ? 'active' : ''}`}
+            onClick={() => setActiveTab('budget')}
+          >
+            Budget
+          </button>
         </div>
 
         <Uploader onUploadSuccess={fetchData} />
@@ -79,8 +96,10 @@ function App() {
         ) : (
           activeTab === 'dashboard' ? (
             <Dashboard transactions={transactions} summary={summary} />
-          ) : (
+          ) : activeTab === 'transactions' ? (
             <TransactionSearch transactions={transactions} />
+          ) : (
+            <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchData} />
           )
         )}
       </main>

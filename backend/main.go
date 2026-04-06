@@ -34,6 +34,8 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/transactions", getTransactions)
 		r.Get("/summary", getSummary)
+		r.Get("/budgets", getBudgets)
+		r.Post("/budgets", setBudget)
 		r.Post("/scan", scanSheets)
 		r.Post("/upload", uploadSheet)
 	})

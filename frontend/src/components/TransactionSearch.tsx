@@ -109,13 +109,9 @@ export default function TransactionSearch({ transactions }: Props) {
       </div>
 
       <div className="dashboard-grid" style={{ marginTop: '1.5rem' }}>
-        <div className="card col-span-6">
+        <div className="card col-span-12">
           <h3 className="card-title">Filtered Spend</h3>
           <div className="stat-value negative">{formatCurrency(breakdown.spend)}</div>
-        </div>
-        <div className="card col-span-6">
-          <h3 className="card-title">Filtered Income / Payments</h3>
-          <div className="stat-value positive">{formatCurrency(breakdown.income)}</div>
         </div>
 
         <div className="card col-span-12">

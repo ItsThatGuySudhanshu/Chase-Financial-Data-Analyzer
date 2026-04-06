@@ -316,3 +316,24 @@ tbody tr:hover {
 .filter-input:focus {
   border-color: var(--accent-color);
 }
+
+/* Budget Tracking Bars */
+.budget-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  background: var(--accent-color);
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.budget-bar-fill.over-budget {
+  background: var(--danger-color);
+}
