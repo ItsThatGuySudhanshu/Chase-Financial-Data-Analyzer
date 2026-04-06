@@ -10,23 +10,24 @@ export default function TransactionSearch({ transactions }: Props) {
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [monthFilter, setMonthFilter] = useState('All')
+  const [yearFilter, setYearFilter] = useState('All')
 
-  // Derive unique months directly from data parsing
-  const availableMonths = useMemo(() => {
-    const months = new Set<string>()
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  // Derive unique years directly from data parsing
+  const availableYears = useMemo(() => {
+    const years = new Set<string>()
     transactions.forEach(t => {
       try {
         const dateStr = t.transaction_date || t.post_date
         const date = parse(dateStr, 'MM/dd/yyyy', new Date())
-        const monthStr = format(date, 'MMM yyyy')
-        months.add(monthStr)
+        years.add(format(date, 'yyyy'))
       } catch {
         // silently ignore broken dates
       }
     })
-    
-    // Returning an arbitrary array. For production, sorting them chronologically helps.
-    return Array.from(months)
+    // Returning sorted years
+    return Array.from(years).sort()
   }, [transactions])
 
   // Derive unique transaction types
@@ -47,20 +48,27 @@ export default function TransactionSearch({ transactions }: Props) {
       
       const matchType = typeFilter === 'All' || t.type === typeFilter
       
-      let matchMonth = monthFilter === 'All'
-      if (!matchMonth) {
+      let matchMonth = true
+      let matchYear = true
+      if (monthFilter !== 'All' || yearFilter !== 'All') {
          try {
            const dateStr = t.transaction_date || t.post_date
            const date = parse(dateStr, 'MM/dd/yyyy', new Date())
-           matchMonth = format(date, 'MMM yyyy') === monthFilter
+           if (monthFilter !== 'All') {
+               matchMonth = format(date, 'MMM') === monthFilter
+           }
+           if (yearFilter !== 'All') {
+               matchYear = format(date, 'yyyy') === yearFilter
+           }
          } catch {
            matchMonth = false
+           matchYear = false
          }
       }
       
-      return matchSearch && matchType && matchMonth
+      return matchSearch && matchType && matchMonth && matchYear
     })
-  }, [transactions, searchTerm, typeFilter, monthFilter])
+  }, [transactions, searchTerm, typeFilter, monthFilter, yearFilter])
 
   // Recalculate local breakdown for the top summary cards
   const breakdown = useMemo(() => {
@@ -104,7 +112,15 @@ export default function TransactionSearch({ transactions }: Props) {
            className="filter-input"
          >
            <option value="All">All Months</option>
-           {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+           {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+         </select>
+         <select 
+           value={yearFilter} 
+           onChange={e => setYearFilter(e.target.value)}
+           className="filter-input"
+         >
+           <option value="All">All Years</option>
+           {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
          </select>
       </div>
 

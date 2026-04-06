@@ -9,36 +9,24 @@ type Props = {
   onBudgetChange: () => void
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const currentYear = new Date().getFullYear()
+const YEARS = Array.from({length: 10}, (_, i) => (currentYear - 2 + i).toString())
+
 export default function BudgetTracker({ transactions, budgets, onBudgetChange }: Props) {
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
-  
+  // Explicit controls for month and year forecasting
+  const [selMonth, setSelMonth] = useState(MONTHS[new Date().getMonth()])
+  const [selYear, setSelYear] = useState(currentYear.toString())
+  const selectedMonthStr = `${selMonth} ${selYear}` // Standardized mapping e.g., "Dec 2025"
+
   // Form States
   const [formCategory, setFormCategory] = useState('')
   const [formAmount, setFormAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Derive unique months directly from data parsing
-  const availableMonths = useMemo(() => {
-    const months = new Set<string>()
-    transactions.forEach(t => {
-      try {
-        const dateStr = t.transaction_date || t.post_date
-        const date = parse(dateStr, 'MM/dd/yyyy', new Date())
-        const monthStr = format(date, 'MMM yyyy')
-        months.add(monthStr)
-      } catch {}
-    })
-    const arrayMonths = Array.from(months)
-    // Default the selected month if not set
-    if (!selectedMonth && arrayMonths.length > 0) {
-      setSelectedMonth(arrayMonths[0])
-    }
-    return arrayMonths
-  }, [transactions, selectedMonth])
-
-  // Get dynamic categories for dropdown
+  // Get dynamic categories for dropdown + common defaults
   const availableCategories = useMemo(() => {
-    const cats = new Set<string>()
+    const cats = new Set<string>(['Groceries', 'Food & Drink', 'Gas', 'Shopping', 'Bills & Utilities', 'Entertainment', 'Personal', 'Travel'])
     transactions.forEach(t => {
       if (t.category) cats.add(t.category)
     })
@@ -47,12 +35,12 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
 
   const handleAddBudget = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formCategory || !formAmount || !selectedMonth) return
+    if (!formCategory || !formAmount) return
     
     setIsSubmitting(true)
     try {
       await axios.post('/budgets', {
-        month: selectedMonth,
+        month: selectedMonthStr,
         category: formCategory,
         amount: parseFloat(formAmount)
       })
@@ -66,30 +54,38 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
     }
   }
 
+  const handleDelete = async (id: number) => {
+      try {
+          await axios.delete(`/budgets/${id}`)
+          onBudgetChange()
+      } catch (err) {
+          console.error(err)
+      }
+  }
+
+  const handleEdit = (budget: Budget) => {
+      setFormCategory(budget.category)
+      setFormAmount(budget.amount.toString())
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   // Current month's budget data bound with actual spends
   const monthData = useMemo(() => {
-    if (!selectedMonth) return []
-
-    // 1. Get all budgets declared for this month
-    const activeBudgets = budgets.filter(b => b.month === selectedMonth)
-
-    // 2. Scan transactions matching this month
+    const activeBudgets = budgets.filter(b => b.month === selectedMonthStr)
     const actualSpends: Record<string, number> = {}
-    transactions.forEach(t => {
-      // Only count negative amounts (spending)
-      if (t.amount >= 0) return
 
+    transactions.forEach(t => {
+      if (t.amount >= 0) return
       try {
         const dStr = t.transaction_date || t.post_date
         const date = parse(dStr, 'MM/dd/yyyy', new Date())
         const mStr = format(date, 'MMM yyyy')
-        if (mStr === selectedMonth && t.category) {
+        if (mStr === selectedMonthStr && t.category) {
             actualSpends[t.category] = (actualSpends[t.category] || 0) + Math.abs(t.amount)
         }
       } catch {}
     })
 
-    // 3. Map together
     return activeBudgets.map(b => {
        const spent = actualSpends[b.category] || 0
        const percent = b.amount > 0 ? Math.min((spent / b.amount) * 100, 100) : 100
@@ -101,7 +97,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
          overBudget
        }
     })
-  }, [budgets, selectedMonth, transactions])
+  }, [budgets, selectedMonthStr, transactions])
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
@@ -110,22 +106,29 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
   return (
     <div style={{ paddingBottom: '2rem' }}>
       <div className="filter-bar card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-             <h3 style={{ margin: 0, fontSize: '1rem' }}>Active Month:</h3>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+             <h3 style={{ margin: 0, fontSize: '1rem' }}>Active Targets For:</h3>
              <select 
-               value={selectedMonth} 
-               onChange={e => setSelectedMonth(e.target.value)}
+               value={selMonth} 
+               onChange={e => setSelMonth(e.target.value)}
                className="filter-input"
-               style={{ flex: 0, minWidth: '200px' }}
+               style={{ flex: 0, minWidth: '120px' }}
              >
-               <option value="" disabled>Select Month...</option>
-               {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+               {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+             </select>
+             <select 
+               value={selYear} 
+               onChange={e => setSelYear(e.target.value)}
+               className="filter-input"
+               style={{ flex: 0, minWidth: '100px' }}
+             >
+               {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
              </select>
          </div>
          
-         <form onSubmit={handleAddBudget} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+         <form onSubmit={handleAddBudget} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
             <div style={{ flex: 1, minWidth: '150px' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Category</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Category Configuration</label>
                 <select 
                     required
                     value={formCategory} 
@@ -138,7 +141,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
                 </select>
             </div>
             <div style={{ flex: 1, minWidth: '150px' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Monthly Budget ($)</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Target Monthly Limit ($)</label>
                 <input 
                     required
                     type="number"
@@ -152,7 +155,7 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
                 />
             </div>
             <button type="submit" className="btn btn-primary" disabled={isSubmitting} style={{ height: '45px' }}>
-                {isSubmitting ? 'Saving...' : 'Set Budget'}
+                {isSubmitting ? 'Saving...' : 'Save Rule'}
             </button>
          </form>
       </div>
@@ -161,9 +164,16 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
           {monthData.map(item => (
               <div key={item.id} className="card col-span-6" style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <h3 className="card-title" style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{item.category}</h3>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                           <strong style={{ color: item.overBudget ? 'var(--danger-color)' : 'var(--text-primary)' }}>
+                      <div>
+                          <h3 className="card-title" style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{item.category}</h3>
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <button onClick={() => handleEdit(item)} className="btn" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}>Edit</button>
+                              <button onClick={() => handleDelete(item.id)} className="btn" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', color: 'var(--danger-color)', border: '1px solid rgba(239, 68, 68, 0.4)' }}>Delete</button>
+                          </div>
+                      </div>
+                      
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                           <strong style={{ color: item.overBudget ? 'var(--danger-color)' : 'var(--text-primary)', fontSize: '1rem' }}>
                                {formatCurrency(item.spent)}
                            </strong> / {formatCurrency(item.amount)}
                       </div>
@@ -177,16 +187,16 @@ export default function BudgetTracker({ transactions, budgets, onBudgetChange }:
                   </div>
                   
                   {item.overBudget && (
-                      <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--danger-color)' }}>
+                      <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--danger-color)', fontWeight: 500 }}>
                           ⚠️ You are {formatCurrency(item.spent - item.amount)} over budget.
                       </div>
                   )}
               </div>
           ))}
 
-          {monthData.length === 0 && selectedMonth && (
-              <div className="card col-span-12" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem' }}>
-                  No budgets configured for {selectedMonth}. Add a budget above to start tracking!
+          {monthData.length === 0 && (
+              <div className="card col-span-12" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '4rem' }}>
+                  No planning rules exist for {selectedMonthStr}. Define a primary target above to start tracking!
               </div>
           )}
       </div>

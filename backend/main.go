@@ -36,6 +36,7 @@ func main() {
 		r.Get("/summary", getSummary)
 		r.Get("/budgets", getBudgets)
 		r.Post("/budgets", setBudget)
+		r.Delete("/budgets/{id}", deleteBudget)
 		r.Post("/scan", scanSheets)
 		r.Post("/upload", uploadSheet)
 	})
