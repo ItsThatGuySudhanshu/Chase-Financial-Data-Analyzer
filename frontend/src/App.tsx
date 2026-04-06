@@ -51,6 +51,16 @@ function App() {
     }
   }
 
+  // Refresh only budgets without toggling `loading` (which would unmount BudgetTracker)
+  const fetchBudgets = async () => {
+    try {
+      const res = await axios.get('/budgets')
+      setBudgets(res.data || [])
+    } catch (error) {
+      console.error("Error fetching budgets:", error)
+    }
+  }
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -99,7 +109,7 @@ function App() {
           ) : activeTab === 'transactions' ? (
             <TransactionSearch transactions={transactions} />
           ) : (
-            <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchData} />
+            <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchBudgets} />
           )
         )}
       </main>
