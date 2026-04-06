@@ -362,6 +362,11 @@ select.filter-input option {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+/* Dark-theme date inputs */
+input[type="date"].filter-input {
+  color-scheme: dark;
+}
+
 /* Compact number input for the budget editor chips */
 .budget-chip-input {
   width: 72px;
