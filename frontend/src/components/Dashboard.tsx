@@ -80,6 +80,8 @@ export default function Dashboard({ transactions, summary }: Props) {
                 paddingAngle={5}
                 dataKey="value"
                 stroke="none"
+                label={({ name }) => name}
+                labelLine={{ stroke: 'var(--text-secondary)' }}
               >
                 {pieData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

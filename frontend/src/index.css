@@ -238,3 +238,24 @@ tbody tr:hover {
     grid-column: span 12;
   }
 }
+
+/* Recharts Dark Mode Overrides */
+.recharts-text {
+  fill: var(--text-primary) !important;
+  font-size: 12px;
+}
+
+.recharts-tooltip-wrapper {
+  color: var(--text-primary) !important;
+}
+
+.recharts-default-tooltip {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+}
+
+.recharts-tooltip-item .recharts-tooltip-item-name,
+.recharts-tooltip-item .recharts-tooltip-item-value {
+  color: var(--text-primary) !important;
+}
