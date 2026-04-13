@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -124,7 +125,15 @@ func deleteBudget(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTransactions(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, transaction_date, post_date, description, category, type, amount, memo FROM transactions ORDER BY transaction_date DESC")
+	rows, err := db.Query(`
+		SELECT t.id, t.transaction_date, t.post_date, t.description, t.category, t.type, t.amount, t.memo, t.custom_category,
+		       GROUP_CONCAT(tg.name) as tags
+		FROM transactions t
+		LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
+		LEFT JOIN tags tg ON tt.tag_id = tg.id
+		GROUP BY t.id
+		ORDER BY t.transaction_date DESC
+	`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -134,14 +143,159 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	var transactions []Transaction
 	for rows.Next() {
 		var t Transaction
-		if err := rows.Scan(&t.ID, &t.TransactionDate, &t.PostDate, &t.Description, &t.Category, &t.Type, &t.Amount, &t.Memo); err != nil {
+		var tags sql.NullString
+		if err := rows.Scan(&t.ID, &t.TransactionDate, &t.PostDate, &t.Description, &t.Category, &t.Type, &t.Amount, &t.Memo, &t.CustomCategory, &tags); err != nil {
 			continue
+		}
+		if tags.Valid {
+			t.Tags = strings.Split(tags.String, ",")
+		} else {
+			t.Tags = []string{}
 		}
 		transactions = append(transactions, t)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(transactions)
+}
+
+// Rules Handlers
+
+type Rule struct {
+	ID                 int    `json:"id"`
+	DescriptionPattern string `json:"description_pattern"`
+	CategoryToApply    string `json:"category_to_apply"`
+}
+
+func getRules(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT id, description_pattern, category_to_apply FROM rules")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var rules []Rule
+	for rows.Next() {
+		var rule Rule
+		if err := rows.Scan(&rule.ID, &rule.DescriptionPattern, &rule.CategoryToApply); err == nil {
+			rules = append(rules, rule)
+		}
+	}
+	if rules == nil {
+		rules = []Rule{}
+	}
+	json.NewEncoder(w).Encode(rules)
+}
+
+func addRule(w http.ResponseWriter, r *http.Request) {
+	var rule Rule
+	if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec("INSERT INTO rules (description_pattern, category_to_apply) VALUES (?, ?)", rule.DescriptionPattern, rule.CategoryToApply)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Apply rule to existing transactions
+	_, _ = db.Exec("UPDATE transactions SET custom_category = ? WHERE description LIKE ?", rule.CategoryToApply, "%"+rule.DescriptionPattern+"%")
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func deleteRule(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	_, err := db.Exec("DELETE FROM rules WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+}
+
+// Tagging Handlers
+
+func addTag(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		TransactionID int    `json:"transaction_id"`
+		TagName       string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	// Insert tag if not exists
+	_, _ = db.Exec("INSERT OR IGNORE INTO tags (name) VALUES (?)", input.TagName)
+	
+	var tagID int
+	err := db.QueryRow("SELECT id FROM tags WHERE name = ?", input.TagName).Scan(&tagID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = db.Exec("INSERT OR IGNORE INTO transaction_tags (transaction_id, tag_id) VALUES (?, ?)", input.TransactionID, tagID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func updateTransactionCategory(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var input struct {
+		Category string `json:"category"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec("UPDATE transactions SET custom_category = ? WHERE id = ?", input.Category, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// Analytics Handlers
+
+func getSubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
+	subs, err := detectSubscriptions()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(subs)
+}
+
+func getTrendsHandler(w http.ResponseWriter, r *http.Request) {
+	trends, err := getMonthlyTrends()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(trends)
+}
+
+func exportCSVHandler(w http.ResponseWriter, r *http.Request) {
+	csvData, err := generateCSVData()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment;filename=transactions.csv")
+	w.Write([]byte(csvData))
 }
 
 func getSummary(w http.ResponseWriter, r *http.Request) {

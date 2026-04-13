@@ -33,6 +33,14 @@ func main() {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/transactions", getTransactions)
+		r.Put("/transactions/{id}/category", updateTransactionCategory)
+		r.Post("/transactions/tag", addTag)
+		r.Get("/rules", getRules)
+		r.Post("/rules", addRule)
+		r.Delete("/rules/{id}", deleteRule)
+		r.Get("/subscriptions", getSubscriptionsHandler)
+		r.Get("/analytics/trends", getTrendsHandler)
+		r.Get("/export", exportCSVHandler)
 		r.Get("/summary", getSummary)
 		r.Get("/budgets", getBudgets)
 		r.Post("/budgets", setBudget)

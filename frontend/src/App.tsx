@@ -4,6 +4,9 @@ import Dashboard from './components/Dashboard'
 import Uploader from './components/Uploader'
 import TransactionSearch from './components/TransactionSearch'
 import BudgetTracker from './components/BudgetTracker'
+import RulesManager from './components/RulesManager'
+import Subscriptions from './components/Subscriptions'
+import Analytics from './components/Analytics'
 
 // API base config
 axios.defaults.baseURL = 'http://localhost:8080/api'
@@ -17,6 +20,8 @@ export type Transaction = {
   type: string
   amount: number
   memo: string
+  custom_category?: string
+  tags?: string[]
 }
 
 export type Budget = {
@@ -26,12 +31,14 @@ export type Budget = {
   amount: number
 }
 
+type Tab = 'dashboard' | 'transactions' | 'budget' | 'rules' | 'subscriptions' | 'analytics'
+
 function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'budget'>('dashboard')
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
 
   const fetchData = async () => {
     setLoading(true)
@@ -58,6 +65,15 @@ function App() {
       setBudgets(res.data || [])
     } catch (error) {
       console.error("Error fetching budgets:", error)
+    }
+  }
+
+  const fetchTransactions = async () => {
+    try {
+      const res = await axios.get('/transactions')
+      setTransactions(res.data || [])
+    } catch (error) {
+      console.error("Error fetching transactions:", error)
     }
   }
 
@@ -92,6 +108,24 @@ function App() {
           >
             Budget
           </button>
+          <button 
+            className={`tab ${activeTab === 'rules' ? 'active' : ''}`}
+            onClick={() => setActiveTab('rules')}
+          >
+            Rules
+          </button>
+          <button 
+            className={`tab ${activeTab === 'subscriptions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('subscriptions')}
+          >
+            Subscriptions
+          </button>
+          <button 
+            className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            Analytics
+          </button>
         </div>
 
         <Uploader onUploadSuccess={fetchData} />
@@ -104,13 +138,14 @@ function App() {
             <p>Loading your financial data...</p>
           </div>
         ) : (
-          activeTab === 'dashboard' ? (
-            <Dashboard transactions={transactions} summary={summary} />
-          ) : activeTab === 'transactions' ? (
-            <TransactionSearch transactions={transactions} />
-          ) : (
-            <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchBudgets} />
-          )
+          <>
+            {activeTab === 'dashboard' && <Dashboard transactions={transactions} summary={summary} />}
+            {activeTab === 'transactions' && <TransactionSearch transactions={transactions} onUpdate={fetchTransactions} />}
+            {activeTab === 'budget' && <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchBudgets} />}
+            {activeTab === 'rules' && <RulesManager onRuleChange={fetchTransactions} />}
+            {activeTab === 'subscriptions' && <Subscriptions />}
+            {activeTab === 'analytics' && <Analytics />}
+          </>
         )}
       </main>
     </div>
