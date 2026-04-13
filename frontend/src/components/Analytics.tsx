@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import {
   BarChart,
@@ -19,7 +19,7 @@ interface TrendData {
   percent_change: number
 }
 
-const Analytics: React.FC = () => {
+export default function Analytics() {
   const [trends, setTrends] = useState<TrendData[]>([])
 
   useEffect(() => {
@@ -108,4 +108,3 @@ const Analytics: React.FC = () => {
   )
 }
 
-export default Analytics

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 interface Rule {
@@ -11,7 +11,7 @@ interface Props {
   onRuleChange: () => void
 }
 
-const RulesManager: React.FC<Props> = ({ onRuleChange }) => {
+export default function RulesManager({ onRuleChange }: Props) {
   const [rules, setRules] = useState<Rule[]>([])
   const [newPattern, setNewPattern] = useState('')
   const [newCategory, setNewCategory] = useState('')
@@ -141,4 +141,3 @@ const RulesManager: React.FC<Props> = ({ onRuleChange }) => {
   )
 }
 
-export default RulesManager

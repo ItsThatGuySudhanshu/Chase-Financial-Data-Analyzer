@@ -1,12 +1,12 @@
 sheets/
 *.db
 spending.db*
-backend.exe
+chase-analyzer.exe
 
 # Dependencies
 node_modules/
 frontend/node_modules/
-backend/backend.exe
+backend/chase-analyzer.exe
 
 # Vite / React
 dist/

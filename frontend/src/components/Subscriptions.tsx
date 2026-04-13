@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 
 interface Subscription {
@@ -8,7 +8,7 @@ interface Subscription {
   last_date: string
 }
 
-const Subscriptions: React.FC = () => {
+export default function Subscriptions() {
   const [subs, setSubs] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -113,4 +113,3 @@ const Subscriptions: React.FC = () => {
   )
 }
 
-export default Subscriptions

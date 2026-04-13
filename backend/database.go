@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"log"
+	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -10,8 +12,15 @@ import (
 var db *sql.DB
 
 func InitDB() {
-	var err error
-	db, err = sql.Open("sqlite", "./spending.db")
+	dbPath, err := GetDBPath()
+	if err != nil {
+		log.Fatalf("Failed to get database path: %v", err)
+	}
+
+	// Ensure directory exists (though InitializeWorkspace should have handled it)
+	os.MkdirAll(filepath.Dir(dbPath), 0755)
+
+	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
 	}

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"cd backend && \\\"C:\\Program Files\\Go\\bin\\go.exe\\\" run .\"",
     "build": "tsc && vite build",
+    "build:exe": "npm run build && (if exist backend\\dist rmdir /s /q backend\\dist) && mkdir backend\\dist && xcopy /e /i dist backend\\dist && cd backend && go build -o chase-analyzer.exe .",
     "preview": "vite preview"
   },
   "dependencies": {

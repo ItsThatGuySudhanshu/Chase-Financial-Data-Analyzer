@@ -7,9 +7,9 @@ import BudgetTracker from './components/BudgetTracker'
 import RulesManager from './components/RulesManager'
 import Subscriptions from './components/Subscriptions'
 import Analytics from './components/Analytics'
+import SetupGuard from './components/SetupGuard'
 
-// API base config
-axios.defaults.baseURL = 'http://localhost:8080/api'
+axios.defaults.baseURL = '/api'
 
 export type Transaction = {
   id: number
@@ -82,73 +82,75 @@ function App() {
   }, [])
 
   return (
-    <div className="app-container">
-      <header className="navbar">
-        <div className="logo" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>
-          <img src="/favicon.png" alt="Logo" className="logo-icon" />
-          <h1>Chase Analyzer</h1>
-        </div>
-
-        <div className="nav-tabs">
-          <button 
-            className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button 
-            className={`tab ${activeTab === 'transactions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('transactions')}
-          >
-            Transactions
-          </button>
-          <button 
-            className={`tab ${activeTab === 'budget' ? 'active' : ''}`}
-            onClick={() => setActiveTab('budget')}
-          >
-            Budget
-          </button>
-          <button 
-            className={`tab ${activeTab === 'rules' ? 'active' : ''}`}
-            onClick={() => setActiveTab('rules')}
-          >
-            Rules
-          </button>
-          <button 
-            className={`tab ${activeTab === 'subscriptions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('subscriptions')}
-          >
-            Subscriptions
-          </button>
-          <button 
-            className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            Analytics
-          </button>
-        </div>
-
-        <Uploader onUploadSuccess={fetchData} />
-      </header>
-
-      <main className="main-content">
-        {loading ? (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p>Loading your financial data...</p>
+    <SetupGuard>
+      <div className="app-container">
+        <header className="navbar">
+          <div className="logo" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>
+            <img src="/favicon.png" alt="Logo" className="logo-icon" />
+            <h1>Chase Analyzer</h1>
           </div>
-        ) : (
-          <>
-            {activeTab === 'dashboard' && <Dashboard transactions={transactions} summary={summary} />}
-            {activeTab === 'transactions' && <TransactionSearch transactions={transactions} onUpdate={fetchTransactions} />}
-            {activeTab === 'budget' && <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchBudgets} />}
-            {activeTab === 'rules' && <RulesManager onRuleChange={fetchTransactions} />}
-            {activeTab === 'subscriptions' && <Subscriptions />}
-            {activeTab === 'analytics' && <Analytics />}
-          </>
-        )}
-      </main>
-    </div>
+
+          <div className="nav-tabs">
+            <button 
+              className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button 
+              className={`tab ${activeTab === 'transactions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('transactions')}
+            >
+              Transactions
+            </button>
+            <button 
+              className={`tab ${activeTab === 'budget' ? 'active' : ''}`}
+              onClick={() => setActiveTab('budget')}
+            >
+              Budget
+            </button>
+            <button 
+              className={`tab ${activeTab === 'rules' ? 'active' : ''}`}
+              onClick={() => setActiveTab('rules')}
+            >
+              Rules
+            </button>
+            <button 
+              className={`tab ${activeTab === 'subscriptions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('subscriptions')}
+            >
+              Subscriptions
+            </button>
+            <button 
+              className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              Analytics
+            </button>
+          </div>
+
+          <Uploader onUploadSuccess={fetchData} />
+        </header>
+
+        <main className="main-content">
+          {loading ? (
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading your financial data...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'dashboard' && <Dashboard transactions={transactions} summary={summary} />}
+              {activeTab === 'transactions' && <TransactionSearch transactions={transactions} onUpdate={fetchTransactions} />}
+              {activeTab === 'budget' && <BudgetTracker transactions={transactions} budgets={budgets} onBudgetChange={fetchBudgets} />}
+              {activeTab === 'rules' && <RulesManager onRuleChange={fetchTransactions} />}
+              {activeTab === 'subscriptions' && <Subscriptions />}
+              {activeTab === 'analytics' && <Analytics />}
+            </>
+          )}
+        </main>
+      </div>
+    </SetupGuard>
   )
 }
 

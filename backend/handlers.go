@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -323,14 +324,15 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 func ScanLocalSheetsDir() int {
-	sheetsDir := filepath.Join("..", "sheets")
+	sheetsDir, err := GetSheetsDir()
+	if err != nil {
+		log.Printf("Error getting sheets dir: %v\n", err)
+		return 0
+	}
+	
 	files, err := os.ReadDir(sheetsDir)
 	if err != nil {
-		sheetsDir = "sheets"
-		files, err = os.ReadDir(sheetsDir)
-		if err != nil {
-			return 0
-		}
+		return 0
 	}
 
 	totalInserted := 0
@@ -377,5 +379,30 @@ func uploadSheet(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "success",
 		"inserted": inserted,
+	})
+}
+
+// Setup Handlers
+
+func getSetupStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"initialized": IsInitialized(),
+	})
+}
+
+func initializeSetup(w http.ResponseWriter, r *http.Request) {
+	err := InitializeWorkspace()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to initialize workspace: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Re-initialize DB now that directory exists
+	InitDB()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "success",
 	})
 }
