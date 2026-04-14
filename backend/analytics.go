@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -27,12 +28,12 @@ func detectSubscriptions() ([]Subscription, error) {
 	}
 	defer rows.Close()
 
-	type transKey struct {
-		desc   string
+	type transRecord struct {
+		date   time.Time
 		amount float64
 	}
 
-	groups := make(map[transKey][]time.Time)
+	groups := make(map[string][]transRecord)
 	for rows.Next() {
 		var desc string
 		var amount float64
@@ -41,38 +42,39 @@ func detectSubscriptions() ([]Subscription, error) {
 			continue
 		}
 
-		// Clean description to group similar ones (e.g. "Netflix.com" and "Netflix")
-		// For simplicity we'll just use exact for now, but usually we filter out dates/IDs
 		date, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			// Try other formats if needed
 			date, _ = time.Parse("1/2/2006", dateStr)
 		}
 
-		key := transKey{desc: desc, amount: amount}
-		groups[key] = append(groups[key], date)
+		groups[desc] = append(groups[desc], transRecord{date: date, amount: amount})
 	}
 
 	var subs []Subscription
-	for key, dates := range groups {
-		if len(dates) < 3 {
+	for desc, records := range groups {
+		if len(records) < 3 {
 			continue
 		}
 
 		// Check if they are in different months
 		months := make(map[string]bool)
-		latest := dates[0]
-		for _, d := range dates {
-			months[d.Format("2006-01")] = true
-			if d.After(latest) {
-				latest = d
+		latest := records[0].date
+		totalAmount := 0.0
+
+		for _, r := range records {
+			months[r.date.Format("2006-01")] = true
+			if r.date.After(latest) {
+				latest = r.date
 			}
+			totalAmount += r.amount
 		}
 
 		if len(months) >= 3 {
+			// Calculate the average amount spent per instance
+			avgAmount := totalAmount / float64(len(records))
 			subs = append(subs, Subscription{
-				Description: key.desc,
-				Amount:      -key.amount,
+				Description: desc,
+				Amount:      -avgAmount,
 				Frequency:   "Monthly",
 				LastDate:    latest.Format("2006-01-02"),
 			})
@@ -83,30 +85,44 @@ func detectSubscriptions() ([]Subscription, error) {
 }
 
 func getMonthlyTrends() ([]TrendData, error) {
-	rows, err := db.Query(`
-		SELECT strftime('%Y-%m', transaction_date) as month, SUM(amount) 
-		FROM transactions 
-		WHERE amount < 0 
-		GROUP BY month 
-		ORDER BY month ASC
-	`)
+	rows, err := db.Query("SELECT transaction_date, amount FROM transactions WHERE amount < 0")
 	if err != nil {
-		// If sqlite version doesn't support strftime nicely on some date formats, 
-		// we might need more robust parsing.
 		return nil, err
 	}
 	defer rows.Close()
 
-	var results []TrendData
+	monthlyTotals := make(map[string]float64)
+	var monthKeys []string
+
 	for rows.Next() {
-		var m string
-		var total float64
-		if err := rows.Scan(&m, &total); err != nil {
+		var dateStr string
+		var amount float64
+		if err := rows.Scan(&dateStr, &amount); err != nil {
 			continue
 		}
+
+		date, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			date, err = time.Parse("1/2/2006", dateStr)
+			if err != nil {
+				continue
+			}
+		}
+
+		monthKey := date.Format("2006-01")
+		if _, exists := monthlyTotals[monthKey]; !exists {
+			monthKeys = append(monthKeys, monthKey)
+		}
+		monthlyTotals[monthKey] += amount
+	}
+
+	sort.Strings(monthKeys)
+
+	var results []TrendData
+	for _, m := range monthKeys {
 		results = append(results, TrendData{
 			Month:      m,
-			TotalSpend: -total,
+			TotalSpend: -monthlyTotals[m],
 		})
 	}
 

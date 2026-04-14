@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
+
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -127,7 +126,7 @@ func deleteBudget(w http.ResponseWriter, r *http.Request) {
 
 func getTransactions(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(`
-		SELECT t.id, t.transaction_date, t.post_date, t.description, t.category, t.type, t.amount, t.memo, t.custom_category,
+		SELECT t.id, COALESCE(t.transaction_date, ''), COALESCE(t.post_date, ''), COALESCE(t.description, ''), COALESCE(t.category, ''), COALESCE(t.type, ''), t.amount, COALESCE(t.memo, ''), COALESCE(t.custom_category, ''),
 		       GROUP_CONCAT(tg.name) as tags
 		FROM transactions t
 		LEFT JOIN transaction_tags tt ON t.id = tt.transaction_id
@@ -146,6 +145,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		var t Transaction
 		var tags sql.NullString
 		if err := rows.Scan(&t.ID, &t.TransactionDate, &t.PostDate, &t.Description, &t.Category, &t.Type, &t.Amount, &t.Memo, &t.CustomCategory, &tags); err != nil {
+			log.Printf("tx scan error: %v", err)
 			continue
 		}
 		if tags.Valid {
@@ -301,7 +301,7 @@ func exportCSVHandler(w http.ResponseWriter, r *http.Request) {
 
 func getSummary(w http.ResponseWriter, r *http.Request) {
 	// Summary by category for negative amounts (spending)
-	rows, err := db.Query("SELECT category, SUM(amount) FROM transactions WHERE amount < 0 GROUP BY category")
+	rows, err := db.Query("SELECT COALESCE(category, ''), SUM(amount) FROM transactions WHERE amount < 0 GROUP BY category")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -323,42 +323,6 @@ func getSummary(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(summary)
 }
 
-func ScanLocalSheetsDir() int {
-	sheetsDir, err := GetSheetsDir()
-	if err != nil {
-		log.Printf("Error getting sheets dir: %v\n", err)
-		return 0
-	}
-	
-	files, err := os.ReadDir(sheetsDir)
-	if err != nil {
-		return 0
-	}
-
-	totalInserted := 0
-	for _, file := range files {
-		if !file.IsDir() && strings.ToLower(filepath.Ext(file.Name())) == ".csv" {
-			filePath := filepath.Join(sheetsDir, file.Name())
-			f, err := os.Open(filePath)
-			if err != nil {
-				continue
-			}
-			inserted, _ := ParseChaseCSV(f)
-			totalInserted += inserted
-			f.Close()
-		}
-	}
-	return totalInserted
-}
-
-func scanSheets(w http.ResponseWriter, r *http.Request) {
-	totalInserted := ScanLocalSheetsDir()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "success",
-		"inserted": totalInserted,
-	})
-}
 
 func uploadSheet(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(10 << 20) // 10 MB max

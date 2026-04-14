@@ -18,9 +18,6 @@ var distEmbed embed.FS
 func main() {
 	InitDB()
 
-	// Automatically scan and ingest any CSVs in the sheets folder on startup
-	inserted := ScanLocalSheetsDir()
-	log.Printf("Startup auto-scan complete. Inserted %d new transactions.\n", inserted)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -54,7 +51,7 @@ func main() {
 		r.Post("/budgets", setBudget)
 		r.Post("/budgets/bulk", setBudgetsBulk)
 		r.Delete("/budgets/{id}", deleteBudget)
-		r.Post("/scan", scanSheets)
+
 		r.Post("/upload", uploadSheet)
 	})
 

@@ -237,7 +237,7 @@ export default function Dashboard({ transactions }: Props) {
                 formatter={(value: number) => formatCurrency(value)}
                 contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
               />
-              <Bar dataKey="pv" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="pv" name="Total Spend" radius={[4, 4, 0, 0]}>
                 {barData.map((entry, index) => (
                   <Cell
                     key={`bar-${index}`}

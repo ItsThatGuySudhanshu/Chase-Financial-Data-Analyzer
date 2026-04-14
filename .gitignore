@@ -1,6 +1,8 @@
 sheets/
 *.db
 spending.db*
+chase-analyzer-data/
+backend/chase-analyzer-data/
 chase-analyzer.exe
 
 # Dependencies
